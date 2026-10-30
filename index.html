@@ -1,0 +1,1123 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0a111f">
+<meta name="description" content="Track every Amex Platinum credit: how much, when it expires, what you've used, and what's left.">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Platinum">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<style>:root{padding-top:env(safe-area-inset-top,0px)}[hidden]{display:none!important}</style>
+<title>Platinum Credit Ledger</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,500;0,600;0,700;1,500&family=Inter:wght@400;500;600;700;800&display=swap">
+<style>
+/* Layout: a phone-style app. Five screens (Today, Credits, Calendar, Perks, Wins) behind a fixed bottom tab bar; details open in a slide-up sheet. */
+:root{
+  --bg:#0a111f; --bg-glow:#16264a; --panel:#131e36; --panel2:#1a2845; --panel3:#22345a;
+  --line:#2a3c62; --track:#253656; --ink:#eef2f8; --muted:#9aa8c3; --faint:#6c7b98;
+  --brass:#dfa849; --brass-hi:#f6dc96; --brass-lo:#a8792b; --brass-ink:#1b1406; --brass-soft:rgba(223,168,73,.14);
+  --urgent:#f28b74; --urgent-soft:rgba(242,139,116,.14);
+  --done:#6fcca5; --done-soft:rgba(111,204,165,.14);
+  --metal-a:#e9edf3; --metal-b:#aab4c4; --metal-c:#7f8a9c; --metal-ink:#1d2433;
+  --scrim:rgba(4,8,16,.66); --nav-bg:rgba(10,17,31,.94);
+  --f-display:"Lora",Georgia,"Times New Roman",serif;
+  --f-body:"Inter",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;font-family:var(--f-body);font-size:17px;line-height:1.5;color:var(--ink);
+  background:radial-gradient(1100px 600px at 85% -10%,var(--bg-glow),transparent 60%),radial-gradient(800px 500px at -10% 30%,rgba(223,168,73,.06),transparent 60%),var(--bg);
+  background-attachment:fixed;min-height:100%}
+h1,h2,h3,h4{font-family:var(--f-display);font-weight:600;margin:0;text-wrap:balance;line-height:1.15}
+p{margin:0}
+button{font-family:var(--f-body);color:var(--ink)}
+.ic{flex:0 0 auto;display:block}
+.num{font-variant-numeric:tabular-nums}
+.muted{color:var(--muted)}
+.eyebrow{font-size:12.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--brass);font-weight:700}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+/* Shell */
+.app{max-width:760px;margin:0 auto;padding-block:18px 128px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:20px}
+.brand{display:flex;align-items:center;gap:10px;min-width:0}
+.mark{width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,var(--brass-hi),var(--brass) 45%,var(--brass-lo));display:grid;place-items:center;color:var(--brass-ink);font-family:var(--f-display);font-weight:700;font-size:20px;box-shadow:0 4px 18px rgba(223,168,73,.25)}
+.brand-t{font-family:var(--f-display);font-size:19px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.top-r{display:flex;align-items:center;gap:8px}
+.iconbtn{width:44px;height:44px;border-radius:12px;border:1px solid var(--line);background:var(--panel);display:grid;place-items:center;cursor:pointer;color:var(--muted)}
+.iconbtn:hover{color:var(--ink);border-color:var(--brass)}
+.sync{display:flex;align-items:center;gap:7px;font-size:13px;color:var(--muted);padding:0 4px}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--faint)}
+.dot.ok{background:var(--done);box-shadow:0 0 0 4px var(--done-soft)}
+.dot.warn{background:var(--brass)}
+:focus-visible{outline:2px solid var(--brass);outline-offset:2px}
+
+.view{display:flex;flex-direction:column;gap:22px}
+.view.anim > *{animation:rise .55s cubic-bezier(.2,.8,.2,1) both}
+.view.anim > *:nth-child(2){animation-delay:.05s}.view.anim > *:nth-child(3){animation-delay:.1s}.view.anim > *:nth-child(4){animation-delay:.15s}.view.anim > *:nth-child(5){animation-delay:.2s}.view.anim > *:nth-child(n+6){animation-delay:.25s}
+@keyframes rise{from{opacity:.001;transform:translateY(14px)}to{opacity:1;transform:none}}
+
+.sec-h{display:flex;align-items:flex-end;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.sec-h h2{font-size:24px}
+.sec-h .sub{font-size:15px;color:var(--muted)}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:18px}
+
+/* Buttons */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:48px;padding:10px 18px;border-radius:14px;border:1px solid var(--line);background:var(--panel2);font-size:16px;font-weight:650;cursor:pointer;text-decoration:none;color:var(--ink)}
+.btn:hover{border-color:var(--brass)}
+.btn.gold{background:linear-gradient(180deg,var(--brass-hi),var(--brass) 55%,var(--brass-lo));border-color:var(--brass);color:var(--brass-ink);box-shadow:0 6px 20px rgba(223,168,73,.22),inset 0 1px 0 rgba(255,255,255,.4)}
+.btn.gold:hover{filter:brightness(1.06)}
+.btn.gold:active,.btn:active{transform:translateY(1px) scale(.99)}
+.btn.big{min-height:58px;font-size:18px;border-radius:16px;padding:12px 22px}
+.btn.ghost{background:transparent}
+.btn.danger{background:transparent;border-color:var(--urgent);color:var(--urgent)}
+.btn.sm{min-height:38px;padding:6px 12px;font-size:14px;border-radius:10px}
+.btn.wide{width:100%}
+.chip{display:inline-flex;align-items:center;gap:5px;font-size:13px;font-weight:650;padding:3px 10px;border-radius:999px;border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+.chip.urgent{background:var(--urgent-soft);border-color:var(--urgent);color:var(--urgent)}
+.chip.soon{background:var(--brass-soft);border-color:var(--brass);color:var(--brass)}
+.chip.done{background:var(--done-soft);border-color:var(--done);color:var(--done)}
+.chip.dash{border-style:dashed}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+
+/* Today hero */
+.hello{display:flex;flex-direction:column;gap:4px}
+.hello h1{font-size:clamp(28px,6.4vw,38px)}
+.hello .waiting{font-size:17px;color:var(--muted)}
+.hello .waiting b{color:var(--brass);font-size:22px;font-weight:800}
+.hero{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:16px;align-items:stretch}
+.metal{position:relative;aspect-ratio:1.586;max-width:100%;border-radius:20px;overflow:hidden;color:var(--metal-ink);
+  background:linear-gradient(125deg,var(--metal-a) 0%,var(--metal-b) 28%,var(--metal-a) 46%,var(--metal-c) 70%,var(--metal-b) 100%);
+  box-shadow:0 20px 50px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.7);padding:18px 20px;display:flex;flex-direction:column;justify-content:space-between}
+.metal::before{content:"";position:absolute;inset:0;background:repeating-linear-gradient(90deg,rgba(255,255,255,.06) 0 1px,transparent 1px 3px);pointer-events:none}
+.metal::after{content:"";position:absolute;top:-50%;bottom:-50%;width:38%;left:-60%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.55),transparent);transform:skewX(-18deg);pointer-events:none}
+@media (prefers-reduced-motion:no-preference){.metal::after{animation:sheen 5.5s ease-in-out 1s infinite}}
+@keyframes sheen{0%{left:-60%}35%{left:130%}100%{left:130%}}
+.metal .m-top{display:flex;justify-content:space-between;align-items:flex-start;position:relative;z-index:1}
+.metal .m-name{font-family:var(--f-display);font-size:clamp(15px,3.6vw,20px);font-weight:700;letter-spacing:.18em}
+.metal .m-sub{font-size:11px;letter-spacing:.16em;font-weight:700;opacity:.7}
+.chipgold{width:46px;height:34px;border-radius:7px;background:linear-gradient(135deg,var(--brass-hi),var(--brass) 50%,var(--brass-lo));position:relative;z-index:1;box-shadow:inset 0 0 0 1px rgba(0,0,0,.18)}
+.chipgold::before{content:"";position:absolute;inset:8px 6px;border:1px solid rgba(0,0,0,.25);border-radius:4px}
+.metal .m-bot{display:flex;justify-content:space-between;align-items:flex-end;gap:8px;position:relative;z-index:1}
+.metal .m-holder{font-size:clamp(12px,2.8vw,15px);font-weight:700;letter-spacing:.14em}
+.metal .m-val{text-align:right;font-size:11px;letter-spacing:.1em;font-weight:700;opacity:.75}
+.metal .m-val b{display:block;font-size:clamp(16px,4vw,22px);letter-spacing:0;opacity:1;font-variant-numeric:tabular-nums}
+.feecard{background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:16px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;text-align:center}
+.ringwrap{position:relative;display:grid;place-items:center}
+.ringwrap .in{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;line-height:1.1}
+.ringwrap .in b{font-size:26px;font-weight:800;font-variant-numeric:tabular-nums}
+.ringwrap .in span{font-size:12.5px;color:var(--muted);margin-top:3px}
+.ring .arc{transition:stroke-dashoffset .8s cubic-bezier(.2,.8,.2,1)}
+.anim .ring .arc{animation:ringIn 1.2s cubic-bezier(.2,.8,.2,1) both}
+@keyframes ringIn{from{stroke-dashoffset:var(--c)}to{stroke-dashoffset:var(--off)}}
+.feecard p{font-size:14.5px;color:var(--muted)}
+
+/* Do-next cards */
+.next{display:flex;flex-direction:column;gap:12px}
+.ncard{background:linear-gradient(180deg,var(--panel2),var(--panel));border:1px solid var(--line);border-radius:20px;padding:16px;display:flex;flex-direction:column;gap:14px}
+.ncard.hot{border-color:var(--urgent)}
+.nrow{display:flex;gap:14px;align-items:center}
+.nicon{width:54px;height:54px;border-radius:16px;display:grid;place-items:center;background:var(--brass-soft);color:var(--brass);flex:0 0 auto}
+.ncard.hot .nicon{background:var(--urgent-soft);color:var(--urgent)}
+.ntext{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+.ntext h3{font-size:19px}
+.nmeta{font-size:15px;color:var(--muted)}
+.namt{font-size:28px;font-weight:800;font-variant-numeric:tabular-nums;color:var(--brass)}
+.nbtns{display:grid;grid-template-columns:2fr 1fr;gap:10px}
+.allclear{text-align:center;padding:28px 18px;display:flex;flex-direction:column;align-items:center;gap:8px}
+.allclear .big{font-family:var(--f-display);font-size:24px}
+
+/* Setup progress */
+.setupcard{display:flex;flex-direction:column;gap:12px}
+.bar{height:12px;border-radius:8px;background:var(--track);overflow:hidden}
+.bar > i{display:block;height:100%;border-radius:8px;background:linear-gradient(90deg,var(--brass-lo),var(--brass),var(--brass-hi))}
+.bar > i.done{background:var(--done)}
+
+/* Stat strip */
+.strip{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.stat{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:14px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.stat .t{display:flex;align-items:center;gap:7px;color:var(--muted);font-size:13.5px;font-weight:600}
+.stat .v{font-size:24px;font-weight:800;font-variant-numeric:tabular-nums}
+.stat.g .v{color:var(--brass)}.stat.r .v{color:var(--urgent)}.stat.gr .v{color:var(--done)}
+
+/* Tip */
+.tip{display:flex;gap:14px;align-items:flex-start;background:linear-gradient(135deg,rgba(223,168,73,.12),transparent 70%),var(--panel);border:1px solid var(--line);border-radius:18px;padding:16px}
+.tip .tic{width:42px;height:42px;border-radius:12px;background:var(--brass);color:var(--brass-ink);display:grid;place-items:center;flex:0 0 auto}
+.tip p{font-size:16px}
+.tip .tl{font-size:12.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--brass);font-weight:700;display:block;margin-bottom:2px}
+
+/* Badges row */
+.medals{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
+.medal{display:flex;flex-direction:column;align-items:center;text-align:center;gap:8px;padding:16px 10px;border-radius:18px;background:var(--panel);border:1px solid var(--line)}
+.medal .disc{width:68px;height:68px;border-radius:50%;display:grid;place-items:center;background:var(--panel3);color:var(--faint);border:2px dashed var(--line)}
+.medal.on .disc{background:radial-gradient(circle at 35% 30%,var(--brass-hi),var(--brass) 55%,var(--brass-lo));color:var(--brass-ink);border:2px solid var(--brass-hi);box-shadow:0 0 0 5px var(--brass-soft),0 8px 24px rgba(223,168,73,.3)}
+.medal h4{font-size:15.5px}
+.medal p{font-size:13px;color:var(--muted)}
+.medal.off h4{color:var(--muted)}
+
+/* Credits grid */
+.filters{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none;margin-left:-2px}
+.filters::-webkit-scrollbar{display:none}
+.fbtn{flex:0 0 auto;min-height:42px;padding:8px 16px;border-radius:999px;border:1px solid var(--line);background:var(--panel);font-size:15px;font-weight:600;cursor:pointer;color:var(--muted)}
+.fbtn[aria-pressed="true"]{background:var(--brass);border-color:var(--brass);color:var(--brass-ink)}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.tile{position:relative;background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:16px;display:flex;flex-direction:column;gap:12px;cursor:pointer;text-align:left;font:inherit;color:inherit;min-width:0}
+.tile:hover{border-color:var(--brass);transform:translateY(-2px)}
+@media (prefers-reduced-motion:no-preference){.tile{transition:transform .2s,border-color .2s}}
+.tile.full{background:linear-gradient(180deg,rgba(111,204,165,.08),transparent 60%),var(--panel)}
+.tile.skip{opacity:.55}
+.tile-top{display:flex;gap:12px;align-items:center}
+.tile-top .ringwrap .in b{font-size:16px}
+.tile h3{font-size:17px}
+.tile .win{font-size:14px;color:var(--muted)}
+.tile .ticon{position:absolute;inset:0;display:grid;place-items:center;color:var(--brass)}
+.tile-act{display:flex;gap:8px;flex-wrap:wrap}
+.groupt{grid-column:1/-1;display:flex;flex-direction:column;gap:2px;margin-top:8px}
+.groupt h3{font-size:20px}
+.groupt span{font-size:14.5px;color:var(--muted)}
+
+/* Calendar */
+.yearsw{display:flex;gap:8px}
+.months{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.mon{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:12px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.mon.now{border-color:var(--brass);box-shadow:0 0 0 3px var(--brass-soft)}
+.mon.pre{opacity:.45}
+.mon-h{display:flex;justify-content:space-between;align-items:baseline;gap:6px}
+.mon-h h4{font-size:17px}
+.mon-h span{font-size:12.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+.mon ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px}
+.mon li{display:flex;align-items:center;gap:6px;font-size:13px;min-width:0}
+.mon li .lbl{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mon li .amt{font-variant-numeric:tabular-nums;color:var(--muted)}
+.pip{width:9px;height:9px;border-radius:3px;flex:0 0 auto;background:var(--faint)}
+.pip.done{background:var(--done)}.pip.lost{background:var(--urgent)}.pip.open{background:var(--brass)}.pip.future{background:transparent;border:1.5px solid var(--muted)}.pip.pre{background:var(--panel3)}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:14px;color:var(--muted)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.dates{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.dates li{display:grid;grid-template-columns:auto 1fr;gap:14px;align-items:center;padding:12px 0;border-top:1px solid var(--line)}
+.dates li:first-child{border-top:0}
+.datebox{width:56px;border-radius:12px;overflow:hidden;text-align:center;border:1px solid var(--line);background:var(--panel2)}
+.datebox i{display:block;font-style:normal;font-size:11px;font-weight:800;letter-spacing:.1em;background:var(--brass);color:var(--brass-ink);padding:2px 0}
+.datebox b{display:block;font-size:22px;padding:2px 0;font-variant-numeric:tabular-nums}
+.dates .dt{display:flex;flex-direction:column;gap:2px;min-width:0}
+.dates .dt span{font-size:14px;color:var(--muted)}
+
+/* Perks */
+.pgrid{display:flex;flex-direction:column;gap:14px}
+.pcard{background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:18px;display:flex;flex-direction:column;gap:14px}
+.ph{display:flex;gap:12px;align-items:center}
+.ph .pi{width:46px;height:46px;border-radius:14px;background:var(--brass-soft);color:var(--brass);display:grid;place-items:center;flex:0 0 auto}
+.ph h3{font-size:20px}
+.ph p{font-size:14.5px;color:var(--muted)}
+.plist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.plist li{display:flex;gap:12px;align-items:flex-start;justify-content:space-between;padding:11px 0;border-top:1px solid var(--line);font-size:15.5px}
+.plist li:first-child{border-top:0}
+.plist li > div{min-width:0}
+.plist b{font-weight:650}
+.plist .r{color:var(--brass);font-weight:700;white-space:nowrap;text-align:right;font-variant-numeric:tabular-nums}
+.plist .s{display:block;color:var(--muted);font-size:14px}
+.warnbox{display:flex;gap:10px;align-items:flex-start;background:var(--urgent-soft);border:1px solid var(--urgent);border-radius:14px;padding:12px 14px;font-size:15px}
+.warnbox .ic{color:var(--urgent);margin-top:2px}
+.counter{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.pips{display:flex;gap:6px;flex-wrap:wrap}
+.pips i{width:22px;height:22px;border-radius:7px;border:1.5px solid var(--line);background:var(--panel2)}
+.pips i.on{background:var(--brass);border-color:var(--brass)}
+.lbtns{display:flex;gap:8px;flex-wrap:wrap}
+.fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.field{display:flex;flex-direction:column;gap:5px;font-size:14px;color:var(--muted);min-width:0}
+.field input{font:inherit;font-size:17px;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:11px 12px;width:100%;min-width:0;min-height:48px}
+.bonusrow{display:flex;gap:18px;align-items:center;flex-wrap:wrap}
+.bonusrow .bt{flex:1 1 220px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.bonusrow .bt b{font-size:22px;color:var(--brass);font-variant-numeric:tabular-nums}
+.partners{display:flex;gap:6px;flex-wrap:wrap}
+.partners span{font-size:14px;padding:5px 11px;border-radius:999px;background:var(--panel2);border:1px solid var(--line)}
+.tg{display:flex;gap:12px;align-items:flex-start;cursor:pointer;font-size:15.5px}
+.tg input{width:24px;height:24px;margin:1px 0 0;accent-color:var(--brass);flex:0 0 auto;cursor:pointer}
+.tg .x{text-decoration:line-through;color:var(--muted)}
+
+/* Wins */
+.bigsave{text-align:center;padding:26px 16px;display:flex;flex-direction:column;align-items:center;gap:6px;background:radial-gradient(400px 200px at 50% 0%,rgba(223,168,73,.2),transparent 70%),var(--panel);border:1px solid var(--line);border-radius:22px}
+.bigsave .v{font-size:clamp(44px,12vw,64px);font-weight:800;color:var(--brass);font-variant-numeric:tabular-nums;line-height:1.05;background:linear-gradient(180deg,var(--brass-hi),var(--brass) 60%,var(--brass-lo));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+.feed{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.feed li{display:flex;gap:12px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:10px 12px}
+.feed .fi{width:38px;height:38px;border-radius:11px;background:var(--brass-soft);color:var(--brass);display:grid;place-items:center;flex:0 0 auto}
+.feed .ft{flex:1;min-width:0;display:flex;flex-direction:column}
+.feed .ft span{font-size:13.5px;color:var(--muted);overflow-wrap:anywhere}
+.feed .fa{font-weight:800;color:var(--done);font-variant-numeric:tabular-nums}
+.mhead{font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:700;margin-top:6px}
+
+/* Bottom nav */
+.nav{position:fixed;left:0;right:0;bottom:0;z-index:20;background:var(--nav-bg);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-top:1px solid var(--line);
+  padding-bottom:env(safe-area-inset-bottom,0px);padding-left:max(6px,env(safe-area-inset-left,0px));padding-right:max(6px,env(safe-area-inset-right,0px))}
+.nav-in{max-width:760px;margin:0 auto;display:grid;grid-template-columns:repeat(5,1fr)}
+.nav button{all:unset;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;padding:9px 2px 10px;font-size:12.5px;font-weight:650;color:var(--faint);position:relative;text-align:center}
+.nav button[aria-current="page"]{color:var(--brass)}
+.nav button[aria-current="page"]::before{content:"";position:absolute;top:0;left:28%;right:28%;height:3px;border-radius:0 0 3px 3px;background:var(--brass)}
+.nav button:focus-visible{outline:2px solid var(--brass);outline-offset:-4px;border-radius:10px}
+.nav .badge{position:absolute;top:6px;left:56%;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--urgent);color:var(--bg);font-size:11px;font-weight:800;display:grid;place-items:center}
+
+/* Sheet */
+.scrim{position:fixed;inset:0;background:var(--scrim);z-index:30}
+.sheet{position:fixed;left:0;right:0;bottom:0;z-index:31;max-width:640px;margin:0 auto;max-height:92%;overflow:auto;background:var(--panel);border:1px solid var(--line);border-bottom:0;border-radius:24px 24px 0 0;
+  padding-block:10px calc(24px + env(safe-area-inset-bottom,0px));padding-left:max(18px,env(safe-area-inset-left,0px));padding-right:max(18px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:16px;box-shadow:0 -20px 60px rgba(0,0,0,.5)}
+@media (prefers-reduced-motion:no-preference){.sheet{animation:up .38s cubic-bezier(.2,.9,.2,1)}.scrim{animation:fade .3s}}
+@keyframes up{from{transform:translateY(40%);opacity:.3}to{transform:none;opacity:1}}
+@keyframes fade{from{opacity:0}to{opacity:1}}
+.grab{width:44px;height:5px;border-radius:3px;background:var(--line);margin:0 auto}
+.sh-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.sh-hero{display:flex;gap:18px;align-items:center;flex-wrap:wrap}
+.sh-hero .ringwrap .in b{font-size:24px}
+.sh-hero .info{flex:1 1 200px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.sh-hero h2{font-size:24px}
+.quick{display:flex;gap:8px;flex-wrap:wrap}
+.sec{display:flex;flex-direction:column;gap:6px}
+.sec .lab{font-size:12.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:700}
+.sec p{font-size:16px;max-width:62ch}
+.hist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.hist li{display:flex;justify-content:space-between;align-items:center;gap:10px;background:var(--panel2);border-radius:12px;padding:8px 12px;font-size:15px}
+.hist li span{min-width:0;overflow-wrap:anywhere}
+.celebrate{text-align:center;align-items:center}
+.celebrate .medal{border:0;background:transparent;padding:6px}
+.celebrate .medal .disc{width:110px;height:110px}
+
+/* Toast */
+.toast{position:fixed;left:50%;top:calc(14px + env(safe-area-inset-top,0px));transform:translateX(-50%);z-index:40;display:flex;align-items:center;gap:12px;width:max-content;max-width:calc(100% - 32px);
+  background:var(--panel3);border:1px solid var(--brass);border-radius:16px;padding:10px 12px 10px 16px;box-shadow:0 12px 40px rgba(0,0,0,.5);font-weight:650}
+@media (prefers-reduced-motion:no-preference){.toast{animation:drop .4s cubic-bezier(.2,.9,.2,1)}}
+@keyframes drop{from{transform:translate(-50%,-30px);opacity:0}to{transform:translate(-50%,0);opacity:1}}
+.toast .ta{color:var(--done);font-variant-numeric:tabular-nums}
+
+@media (max-width:620px){
+  .hero{grid-template-columns:1fr}
+  .grid{grid-template-columns:1fr}
+  .months{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .fields{grid-template-columns:1fr}
+}
+@media (max-width:380px){
+  .strip{grid-template-columns:1fr}
+  .nbtns{grid-template-columns:1fr}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+
+
+<div class="app">
+  <header class="top">
+    <div class="brand"><div class="mark" aria-hidden="true">P</div><div class="brand-t">Platinum Ledger</div></div>
+    <div class="top-r">
+      <div class="sync" title="Where your entries are saved"><span class="dot" id="sync-dot"></span><span id="sync-text">Connecting…</span></div>
+      <button type="button" class="iconbtn" id="sound-btn" data-act="sound" aria-label="Sound effects on or off"></button>
+    </div>
+  </header>
+  <main class="view anim" id="view" aria-live="polite"></main>
+</div>
+
+<nav class="nav" aria-label="Screens"><div class="nav-in" id="nav"></div></nav>
+<div id="sheet-root"></div>
+<div id="toast-root"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/canvas-confetti/1.9.3/confetti.browser.min.js"></script>
+<script>
+(function(){
+"use strict";
+const KEY = "platinum-ledger-v1";
+const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const MONTHS_L = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+const FEE = 895;
+
+/* ---------------- icons ---------------- */
+const ICONS = {
+  tv:'<rect x="2" y="5" width="20" height="13" rx="2"/><path d="M8 21h8M12 18v3"/>',
+  car:'<path d="M5 17h14v-5l-2-5H7l-2 5z"/><path d="M5 12h14"/><circle cx="8" cy="17" r="1.6"/><circle cx="16" cy="17" r="1.6"/>',
+  cart:'<path d="M3 4h2l2.4 11h10.2l2-8H6.3"/><circle cx="9.5" cy="19.5" r="1.5"/><circle cx="17" cy="19.5" r="1.5"/>',
+  fork:'<path d="M7 3v18M4.5 3v5a2.5 2.5 0 0 0 5 0V3M17 3c-2 0-3.2 3-3.2 7.5H17V21"/>',
+  bag:'<path d="M5.5 8h13l-1 13h-11z"/><path d="M9 10V7a3 3 0 0 1 6 0v3"/>',
+  bed:'<path d="M3 19V7M3 15h18v4M21 15v-2.5a3 3 0 0 0-3-3h-7.5V15"/><circle cx="6.8" cy="11.5" r="1.8"/>',
+  plane:'<path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4z"/>',
+  face:'<path d="M4 8V5.5A1.5 1.5 0 0 1 5.5 4H8M16 4h2.5A1.5 1.5 0 0 1 20 5.5V8M20 16v2.5a1.5 1.5 0 0 1-1.5 1.5H16M8 20H5.5A1.5 1.5 0 0 1 4 18.5V16"/><circle cx="12" cy="10" r="2.6"/><path d="M7.8 16.5c1-1.5 2.5-2.2 4.2-2.2s3.2.7 4.2 2.2"/>',
+  dumbbell:'<path d="M6.5 6.5v11M17.5 6.5v11M3.5 9.5v5M20.5 9.5v5M6.5 12h11"/>',
+  ring:'<circle cx="12" cy="14.5" r="6"/><path d="M9.2 3.5h5.6l-1.5 3.2h-2.6z"/>',
+  star:'<path d="M12 3l2.7 5.8 6.3.7-4.7 4.3 1.3 6.2L12 16.9 6.4 20l1.3-6.2L3 9.5l6.3-.7z"/>',
+  passport:'<rect x="5" y="3" width="14" height="18" rx="2"/><circle cx="12" cy="10.5" r="3"/><path d="M9 17h6"/>',
+  shield:'<path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M8.5 12l2.5 2.5 4.5-5"/>',
+  sofa:'<path d="M4.5 11V8.5a2 2 0 0 1 2-2h11a2 2 0 0 1 2 2V11"/><path d="M2.5 11.5a1.5 1.5 0 0 1 3 0V14h13v-2.5a1.5 1.5 0 0 1 3 0V18h-19z"/><path d="M4.5 18v2M19.5 18v2"/>',
+  trophy:'<path d="M8 4h8v5a4 4 0 0 1-8 0z"/><path d="M8 6H5a3 3 0 0 0 3 4.5M16 6h3a3 3 0 0 1-3 4.5M12 13v3.5M8.5 21h7M9.5 17h5v4h-5z"/>',
+  calendar:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>',
+  home:'<path d="M3 11l9-7 9 7"/><path d="M5.5 9.5V20h13V9.5"/><path d="M10 20v-5h4v5"/>',
+  gift:'<rect x="3" y="8" width="18" height="4.5" rx="1"/><path d="M5 12.5V21h14v-8.5M12 8v13"/><path d="M12 8C10.5 4.5 6.5 4 6.5 6.4 6.5 8.2 12 8 12 8zM12 8c1.5-3.5 5.5-4 5.5-1.6C17.5 8.2 12 8 12 8z"/>',
+  sparkle:'<path d="M12 3c.6 4.2 2.8 6.4 7 7-4.2.6-6.4 2.8-7 7-.6-4.2-2.8-6.4-7-7 4.2-.6 6.4-2.8 7-7z"/><path d="M19 15.5c.3 1.7 1.1 2.5 2.5 2.8-1.4.3-2.2 1.1-2.5 2.7-.3-1.6-1.1-2.4-2.5-2.7 1.4-.3 2.2-1.1 2.5-2.8z"/>',
+  sound:'<path d="M4 9.5h3.5L13 5v14l-5.5-4.5H4z"/><path d="M16.5 9a4.5 4.5 0 0 1 0 6M19 6.5a8 8 0 0 1 0 11"/>',
+  mute:'<path d="M4 9.5h3.5L13 5v14l-5.5-4.5H4z"/><path d="M16.5 9.5l5 5M21.5 9.5l-5 5"/>',
+  check:'<path d="M5 12.5l4.5 4.5L19 7.5"/>',
+  x:'<path d="M6 6l12 12M18 6 6 18"/>',
+  coin:'<circle cx="12" cy="12" r="9"/><path d="M14.8 9.2c-.5-.9-1.5-1.4-2.8-1.4-1.8 0-2.9.9-2.9 2.1 0 2.9 5.9 1.6 5.9 4.5 0 1.3-1.2 2.1-3 2.1-1.5 0-2.6-.6-3.1-1.5M12 6v1.8M12 16.3V18"/>',
+  card:'<rect x="2.5" y="5" width="19" height="14" rx="2.5"/><path d="M2.5 10h19M6 15h4"/>',
+  fire:'<path d="M12 21c-3.9 0-6.5-2.6-6.5-6 0-3.3 2.4-5 3.4-8 1.6 1.4 2.4 2.9 2.6 4.6 1-1 1.6-2.4 1.7-4.1 2.6 2 4.3 4.6 4.3 7.5 0 3.4-1.6 6-5.5 6z"/>',
+  bolt:'<path d="M13 2 4 14h7l-1 8 9-12h-7z"/>',
+  clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/>',
+  phone:'<rect x="7" y="2.5" width="10" height="19" rx="2.5"/><path d="M11 18.5h2"/>',
+  swap:'<path d="M4 8h13l-3.5-3.5M20 16H7l3.5 3.5"/>',
+  undo:'<path d="M9 7 4 12l5 5"/><path d="M4 12h10.5a5.5 5.5 0 0 1 0 11H12"/>',
+  settings:'<circle cx="12" cy="12" r="3"/><path d="M12 2.5v3M12 18.5v3M4.2 6.2l2.1 2.1M17.7 15.7l2.1 2.1M2.5 12h3M18.5 12h3M4.2 17.8l2.1-2.1M17.7 8.3l2.1-2.1"/>',
+  target:'<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5"/>',
+  lock:'<rect x="5" y="10.5" width="14" height="10" rx="2"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/>'
+};
+function icon(n, s){ s = s || 24; return '<svg class="ic" width="'+s+'" height="'+s+'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+(ICONS[n]||"")+'</svg>'; }
+
+/* ---------------- benefit catalog ---------------- */
+const BENEFITS = [
+  {k:"digital", short:"Entertainment", name:"Digital Entertainment", ico:"tv", cad:"month", amt:25, enroll:true, autoOk:true,
+   what:"Streaming and news subscriptions from Amex's partner list (for example Disney+, Hulu, Peacock and The New York Times). The Amex app shows the current list.",
+   how:"Move one streaming bill of about $25 a month onto the Platinum, then turn on Happens automatically. After that it takes care of itself."},
+  {k:"uber", short:"Uber Cash", name:"Uber Cash", ico:"car", cad:"month", amt:15, decAmt:35, enroll:false, autoOk:false,
+   what:"Uber rides or Uber Eats in the U.S. $15 appears in your Uber app as Uber Cash on the 1st of every month, and $35 in December.",
+   how:"Add the Platinum to the Uber app once and keep it as your payment card there. One Uber Eats lunch or one ride a month uses it. Unused Uber Cash disappears at month end."},
+  {k:"walmart", short:"Walmart+", name:"Walmart+ membership", ico:"cart", cad:"month", amt:12.95, enroll:false, autoOk:true,
+   what:"A monthly Walmart+ membership ($12.95 plus tax) paid with the Platinum. The yearly Walmart+ plan doesn't count.",
+   how:"Sign up for monthly Walmart+ with the Platinum, then turn on Happens automatically. Free grocery delivery from Walmart comes with it."},
+  {k:"resy", short:"Resy dining", name:"Resy dining", ico:"fork", cad:"quarter", amt:100, enroll:true, autoOk:false,
+   what:"Paying with the Platinum at any U.S. restaurant that uses Resy. You don't have to book through Resy, you just pay there.",
+   how:"Open the Resy app, find a restaurant near you, and enjoy one $100 dinner each quarter (or two $50 ones)."},
+  {k:"lulu", short:"lululemon", name:"lululemon", ico:"bag", cad:"quarter", amt:75, enroll:true, autoOk:false,
+   what:"U.S. lululemon stores and lululemon.com. Outlet stores don't count.",
+   how:"One purchase of about $75 each quarter. It makes an easy gift."},
+  {k:"hotel", short:"Hotel credit", name:"Fine Hotels + Resorts / Hotel Collection", ico:"bed", cad:"half", amt:300, enroll:false, autoOk:false,
+   what:"Prepaid hotel stays booked through Amex Travel (the Amex app or amextravel.com) and paid with the Platinum. The Hotel Collection needs at least 2 nights.",
+   how:"Book one prepaid Fine Hotels + Resorts stay each half year. These bookings also give breakfast for two, a room upgrade when available, 4pm checkout and a property credit."},
+  {k:"airline", short:"Airline fees", name:"Airline fee credit", ico:"plane", cad:"year", amt:200, enroll:true, autoOk:false,
+   what:"Extra fees on the one airline you pick: checked bags, seat assignments, in-flight food and drinks. Airfare itself doesn't count.",
+   how:"Pick your airline in the Amex app (Benefits, then Airline Fee Credit). Then pay bag and seat fees on that airline with the Platinum."},
+  {k:"clear", short:"CLEAR Plus", name:"CLEAR Plus", ico:"face", cad:"year", amt:209, enroll:false, autoOk:true,
+   what:"A CLEAR Plus membership (the fast airport security lane) paid with the Platinum. Sources list it at up to $209.",
+   how:"Join or renew CLEAR with the Platinum. Delta Diamond Medallion also includes CLEAR Plus, so check that before paying twice."},
+  {k:"equinox", short:"Equinox", name:"Equinox", ico:"dumbbell", cad:"year", amt:300, enroll:true, autoOk:true,
+   what:"An Equinox club membership or the Equinox+ app, paid with the Platinum.",
+   how:"Skip it unless you'd use Equinox anyway. Tap \"I don't use this one\" and it stops counting against you."},
+  {k:"oura", short:"Oura Ring", name:"Oura Ring", ico:"ring", cad:"year", amt:200, enroll:true, autoOk:false,
+   what:"An Oura Ring purchase paid with the Platinum. One source says it resets on your card anniversary rather than in January. I haven't confirmed which, so check the Amex app.",
+   how:"Only worth it if you'd want the ring anyway."},
+  {k:"uberone", short:"Uber One", name:"Uber One membership", ico:"star", cad:"year", amt:120, enroll:true, autoOk:true,
+   what:"An auto-renewing Uber One membership paid with the Platinum. It saves on Uber Eats delivery fees and rides.",
+   how:"Turn on Uber One in the Uber app with the Platinum as payment, then turn on Happens automatically."},
+  {k:"ge", short:"Global Entry", name:"Global Entry or TSA PreCheck", ico:"passport", cad:"4yr", amt:120, enroll:false, autoOk:false,
+   what:"The application fee for Global Entry (up to $120) or TSA PreCheck, paid with the Platinum.",
+   how:"Once every 4 years. Use it when your Global Entry or PreCheck is close to expiring."}
+];
+const BK = Object.fromEntries(BENEFITS.map(b => [b.k,b]));
+const MONTHLY = BENEFITS.filter(b => b.cad === "month");
+const CAD_LABEL = {month:"this month", quarter:"this quarter", half:"this half-year", year:"this year", "4yr":""};
+const CAD_NAME = {month:"Monthly", quarter:"Quarterly", half:"Twice a year", year:"Yearly", "4yr":"Every 4 years"};
+
+const SETUP = [
+  {k:"enroll", t:"Enroll in every credit marked Enroll first (Amex app, Benefits tab)"},
+  {k:"uberapp", t:"Add the Platinum to the Uber app as your payment card"},
+  {k:"airlinepick", t:"Pick your airline for the $200 airline fee credit"},
+  {k:"subs", t:"Move a streaming bill and monthly Walmart+ onto the Platinum"},
+  {k:"pp", t:"Sign up for Priority Pass (free lounge membership)"},
+  {k:"hilton", t:"Turn on Hilton Honors Gold status"},
+  {k:"marriott", t:"Turn on Marriott Bonvoy Gold status"},
+  {k:"lhw", t:"Turn on Leaders Club status (Leading Hotels of the World)"},
+  {k:"cars", t:"Turn on Hertz, National and Avis rental car status"},
+  {k:"phone", t:"Pay your cell phone bill with the Platinum (turns on phone protection)"}
+];
+
+const TIPS = [
+  "The Resy credit works at any U.S. restaurant on Resy. You don't need a reservation, just pay with the Platinum.",
+  "Uber Cash vanishes at the end of each month. A $15 Uber Eats lunch uses it up.",
+  "Booking Fine Hotels + Resorts through the Amex app gets you breakfast for two and 4pm checkout on top of the $300 credit.",
+  "Pay checked-bag fees on your chosen airline with the Platinum and the $200 airline credit pays you back.",
+  "Pay for the whole round trip with the Platinum. That turns on trip-delay coverage after 6 hours and trip cancellation up to $10,000.",
+  "The Platinum has no emergency medical coverage abroad. Buy travel medical insurance for international trips.",
+  "Pay your cell phone bill with the Platinum and a damaged or stolen phone is covered.",
+  "Check Amex Offers in the app before you shop. They stack on top of these credits.",
+  "Flights booked directly with the airline on the Platinum earn 5 points per dollar.",
+  "If a credit hasn't posted a week after you used it, tap Chat in the Amex app and ask them to apply it."
+];
+
+const LOUNGES = [
+  {k:"sky", n:"Delta Sky Club", s:"10 visits a year, only on days you fly Delta"},
+  {k:"centurion", n:"Centurion Lounge", s:"Amex's own lounges. The best of the bunch"},
+  {k:"pp", n:"Priority Pass lounge", s:"About 1,500 lounges worldwide after you enroll"},
+  {k:"plaza", n:"Plaza Premium", s:"Lounges in many international airports"},
+  {k:"escape", n:"Escape Lounge", s:"Smaller U.S. airport lounges"}
+];
+
+/* ---------------- state ---------------- */
+function defaults(){ return {v:2, cardSince:"2026-10-30", entries:[], enrolled:{}, auto:{}, setup:{}, skip:{}, lounges:[], badges:[], sound:true,
+  bonus:{points:175000, target:12000, deadline:"2027-04-30", spent:0}}; }
+function hydrate(raw){
+  const d = defaults(), s = Object.assign(d, raw || {});
+  s.bonus = Object.assign(defaults().bonus, (raw && raw.bonus) || {});
+  for(const f of ["entries","lounges","badges"]) if(!Array.isArray(s[f])) s[f] = [];
+  for(const f of ["enrolled","auto","setup","skip"]) if(!s[f] || typeof s[f] !== "object") s[f] = {};
+  s.v = 2; return s;
+}
+let state = defaults();
+try{ const raw = localStorage.getItem(KEY); if(raw) state = hydrate(JSON.parse(raw)); }catch(e){}
+
+const ui = {tab:"today", filter:"all", calYear:null, sheet:null, resetArmed:false, prev:{}};
+
+/* ---------------- dates & money ---------------- */
+const pad = n => String(n).padStart(2,"0");
+const iso = d => d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());
+const parse = s => { const p = String(s).split("-").map(Number); return new Date(p[0], p[1]-1, p[2]); };
+const nice = s => { const d = parse(s); return MONTHS[d.getMonth()]+" "+d.getDate(); };
+const niceY = s => { const d = parse(s); return MONTHS[d.getMonth()]+" "+d.getDate()+", "+d.getFullYear(); };
+function today(){ const n = new Date(); return new Date(n.getFullYear(), n.getMonth(), n.getDate()); }
+const tIso = () => iso(today());
+const daysBetween = (a,b) => Math.round((parse(b) - parse(a)) / 864e5);
+function money(n, dec){
+  const v = Math.round((Number(n)||0) * 100) / 100;
+  const frac = dec === undefined ? (v % 1 !== 0) : dec;
+  return "$" + v.toLocaleString("en-US", {minimumFractionDigits: frac ? 2 : 0, maximumFractionDigits: frac ? 2 : 0});
+}
+const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+
+/* ---------------- credit math ---------------- */
+function amtFor(b, m){ return (b.decAmt && m === 11) ? b.decAmt : b.amt; }
+function periodAt(b, d){
+  const y = d.getFullYear(), m = d.getMonth(); let s, e;
+  if(b.cad === "month"){ s = new Date(y,m,1); e = new Date(y,m+1,0); }
+  else if(b.cad === "quarter"){ const q = Math.floor(m/3)*3; s = new Date(y,q,1); e = new Date(y,q+3,0); }
+  else if(b.cad === "half"){ const h = m < 6 ? 0 : 6; s = new Date(y,h,1); e = new Date(y,h+6,0); }
+  else { s = new Date(y,0,1); e = new Date(y,11,31); }
+  return {s:iso(s), e:iso(e), amt:amtFor(b, s.getMonth())};
+}
+function periodsInYear(b, y){
+  const step = {month:1, quarter:3, half:6, year:12}[b.cad]; const out = [];
+  for(let m = 0; m < 12; m += step) out.push(periodAt(b, new Date(y,m,1)));
+  return out;
+}
+const entriesFor = k => state.entries.filter(x => x.b === k);
+function usedIn(b, p){
+  let sum = 0;
+  for(const x of state.entries) if(x.b === b.k && x.date >= p.s && x.date <= p.e) sum += Number(x.amt)||0;
+  if(state.auto[b.k] && p.e >= state.auto[b.k]) sum = p.amt;
+  return Math.min(p.amt, sum);
+}
+function geStatus(){
+  const list = entriesFor("ge").sort((a,c) => a.date < c.date ? 1 : -1);
+  if(list.length){ const d = parse(list[0].date); const until = iso(new Date(d.getFullYear()+4, d.getMonth(), d.getDate()-1));
+    if(until >= tIso()) return {used:true, s:list[0].date, e:until, amt:120}; }
+  return {used:false, amt:120};
+}
+function current(b){
+  if(b.cad === "4yr"){ const g = geStatus(); return {p:g, used:g.used?b.amt:0, left:g.used?0:b.amt, days:null, open:!g.used, pct:g.used?1:0}; }
+  const p = periodAt(b, today()); const used = usedIn(b, p);
+  return {p, used, left:Math.max(0, p.amt - used), days:daysBetween(tIso(), p.e), pct:p.amt ? used/p.amt : 0};
+}
+function yearTotals(y){
+  const t = tIso(); let used = 0, lost = 0, now = 0, possible = 0;
+  for(const b of BENEFITS){
+    if(b.cad === "4yr"){ for(const x of entriesFor("ge")) if(x.date.slice(0,4) === String(y)) used += Math.min(b.amt, Number(x.amt)||0); continue; }
+    for(const p of periodsInYear(b, y)){
+      if(p.e < state.cardSince) continue;
+      const u = usedIn(b, p);
+      if(state.skip[b.k] && u === 0) continue;
+      possible += p.amt;
+      if(p.s > t) continue;
+      used += u;
+      if(p.e < t) lost += (p.amt - u); else now += (p.amt - u);
+    }
+  }
+  return {used, lost, now, possible};
+}
+function sinceYear(){ return parse(state.cardSince).getFullYear(); }
+function lifetime(){ let used = 0, lost = 0; for(let y = sinceYear(); y <= today().getFullYear(); y++){ const T = yearTotals(y); used += T.used; lost += T.lost; } return {used, lost}; }
+function bestYear(){ let best = 0; for(let y = sinceYear(); y <= today().getFullYear(); y++) best = Math.max(best, yearTotals(y).used); return best; }
+function monthSwept(y, m){
+  const list = MONTHLY.filter(b => !state.skip[b.k]); if(!list.length) return false;
+  return list.every(b => { const p = periodAt(b, new Date(y,m,1)); return usedIn(b,p) >= p.amt; });
+}
+function streak(){
+  const t = today(); let y = t.getFullYear(), m = t.getMonth(), n = 0;
+  if(!monthSwept(y,m)){ m--; if(m < 0){ m = 11; y--; } }
+  while(true){
+    const end = iso(new Date(y,m+1,0)); if(end < state.cardSince) break;
+    if(!monthSwept(y,m)) break; n++; m--; if(m < 0){ m = 11; y--; }
+    if(n > 240) break;
+  }
+  return n;
+}
+function anySwept(){ for(let y = sinceYear(); y <= today().getFullYear(); y++) for(let m = 0; m < 12; m++){ if(iso(new Date(y,m,1)) > tIso()) break; if(iso(new Date(y,m+1,0)) >= state.cardSince && monthSwept(y,m)) return true; } return false; }
+function anyQuarterPerfect(){
+  for(let y = sinceYear(); y <= today().getFullYear(); y++) for(let q = 0; q < 12; q += 3){
+    const ok = ["resy","lulu"].every(k => { const b = BK[k]; const p = periodAt(b, new Date(y,q,1)); return usedIn(b,p) >= p.amt; });
+    if(ok) return true;
+  } return false;
+}
+function skyCount(){
+  const t = today(); const y = t.getMonth() >= 1 ? t.getFullYear() : t.getFullYear()-1;
+  const s = y+"-02-01", e = (y+1)+"-01-31";
+  return {n: state.lounges.filter(v => v.k === "sky" && v.date >= s && v.date <= e).length, s, e};
+}
+function doNext(){
+  return BENEFITS.filter(b => b.cad !== "4yr" && !state.skip[b.k]).map(b => ({b, c:current(b)})).filter(x => x.c.left > 0)
+    .sort((a,z) => a.c.days - z.c.days || z.c.left - a.c.left);
+}
+
+/* ---------------- badges ---------------- */
+const BADGES = [
+  {k:"first", n:"First Dollar Back", d:"Log your first credit.", ico:"coin", t:() => state.entries.length > 0 || Object.keys(state.auto).length > 0},
+  {k:"sweep", n:"Clean Sweep", d:"Use every monthly credit in one month.", ico:"sparkle", t:anySwept},
+  {k:"quarter", n:"Perfect Quarter", d:"Use all of Resy and lululemon in one quarter.", ico:"target", t:anyQuarterPerfect},
+  {k:"hotel", n:"Five-Star Night", d:"Use a hotel credit.", ico:"bed", t:() => entriesFor("hotel").length > 0},
+  {k:"half", n:"Halfway Home", d:"Earn back half the $895 fee in one year.", ico:"bolt", t:() => bestYear() >= FEE/2},
+  {k:"fee", n:"Fee Crusher", d:"Earn back the whole $895 fee in one year.", ico:"trophy", t:() => bestYear() >= FEE},
+  {k:"grand", n:"Grand Slam", d:"Get $2,000 back in one year.", ico:"star", t:() => bestYear() >= 2000},
+  {k:"enrolled", n:"Fully Enrolled", d:"Enroll in every credit that needs it.", ico:"check", t:() => BENEFITS.filter(b => b.enroll && !state.skip[b.k]).every(b => state.enrolled[b.k])},
+  {k:"setup", n:"All Set Up", d:"Finish the one-time setup list.", ico:"settings", t:() => SETUP.every(s => state.setup[s.k])},
+  {k:"streak3", n:"Three-Peat", d:"Three months in a row of every monthly credit.", ico:"fire", t:() => streak() >= 3},
+  {k:"lounge", n:"Lounge Regular", d:"Log a lounge visit.", ico:"sofa", t:() => state.lounges.length > 0},
+  {k:"bonus", n:"Bonus Unlocked", d:"Hit your welcome bonus spending goal.", ico:"gift", t:() => state.bonus.target > 0 && state.bonus.spent >= state.bonus.target}
+];
+function unlocked(){ return BADGES.filter(b => { try{ return b.t(); }catch(e){ return false; } }).map(b => b.k); }
+
+/* ---------------- sound, haptics, confetti ---------------- */
+let actx = null;
+function tone(freq, start, dur, vol, type){
+  const o = actx.createOscillator(), g = actx.createGain();
+  o.type = type || "sine"; o.frequency.value = freq;
+  g.gain.setValueAtTime(0.0001, actx.currentTime + start);
+  g.gain.exponentialRampToValueAtTime(vol, actx.currentTime + start + 0.015);
+  g.gain.exponentialRampToValueAtTime(0.0001, actx.currentTime + start + dur);
+  o.connect(g).connect(actx.destination); o.start(actx.currentTime + start); o.stop(actx.currentTime + start + dur + 0.05);
+}
+function chime(level){
+  if(!state.sound) return;
+  try{
+    if(!actx) actx = new (window.AudioContext || window.webkitAudioContext)();
+    if(actx.state === "suspended") actx.resume();
+    if(level === "big"){ [523.25,659.25,783.99,1046.5,1318.5].forEach((f,i) => { tone(f, i*0.09, 0.55, 0.16, "triangle"); tone(f*2, i*0.09, 0.3, 0.04, "sine"); }); }
+    else if(level === "mid"){ [659.25,880,1174.66].forEach((f,i) => tone(f, i*0.08, 0.45, 0.15, "triangle")); }
+    else { tone(1318.5, 0, 0.18, 0.12, "triangle"); tone(1975.5, 0.07, 0.35, 0.10, "sine"); }
+  }catch(e){}
+}
+function buzz(ms){ try{ navigator.vibrate && navigator.vibrate(ms); }catch(e){} }
+const reduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
+const COLORS = ["#dfa849","#f6dc96","#ffffff","#c9d3e6","#6fcca5","#a8792b"];
+function boom(level, x, y){
+  if(reduced() || typeof window.confetti !== "function") return;
+  const origin = {x: x === undefined ? 0.5 : x, y: y === undefined ? 0.6 : y};
+  try{
+    if(level === "big"){
+      window.confetti({particleCount:160, spread:100, startVelocity:48, origin, colors:COLORS, scalar:1.1});
+      setTimeout(() => window.confetti({particleCount:80, angle:60, spread:70, origin:{x:0,y:.75}, colors:COLORS}), 220);
+      setTimeout(() => window.confetti({particleCount:80, angle:120, spread:70, origin:{x:1,y:.75}, colors:COLORS}), 380);
+    } else if(level === "mid"){ window.confetti({particleCount:90, spread:80, origin, colors:COLORS}); }
+    else { window.confetti({particleCount:40, spread:55, startVelocity:30, origin, colors:COLORS, scalar:.9}); }
+  }catch(e){}
+}
+function originOf(el){ if(!el || !el.getBoundingClientRect) return {}; const r = el.getBoundingClientRect(); return {x:(r.left + r.width/2)/innerWidth, y:(r.top + r.height/2)/innerHeight}; }
+
+/* ---------------- small render helpers ---------------- */
+function ring(pct, size, sw, color, inner){
+  const r = (size - sw)/2, c = 2*Math.PI*r, p = Math.max(0, Math.min(1, pct)), off = c*(1-p), h = size/2;
+  return '<div class="ringwrap" style="width:'+size+'px;height:'+size+'px"><svg class="ring" width="'+size+'" height="'+size+'" viewBox="0 0 '+size+' '+size+'" aria-hidden="true">'+
+    '<circle cx="'+h+'" cy="'+h+'" r="'+r+'" fill="none" stroke="var(--track)" stroke-width="'+sw+'"/>'+
+    '<circle class="arc" cx="'+h+'" cy="'+h+'" r="'+r+'" fill="none" stroke="'+color+'" stroke-width="'+sw+'" stroke-linecap="round" stroke-dasharray="'+c.toFixed(2)+'" stroke-dashoffset="'+off.toFixed(2)+'" style="--c:'+c.toFixed(2)+';--off:'+off.toFixed(2)+';opacity:'+(p>0?1:0)+'" transform="rotate(-90 '+h+' '+h+')"/></svg>'+
+    '<div class="in">'+(inner||"")+'</div></div>';
+}
+function dayWords(d){ return d === 0 ? "Ends today" : d === 1 ? "Ends tomorrow" : d+" days left"; }
+function chip(b, c){
+  if(state.skip[b.k]) return '<span class="chip">Not using</span>';
+  if(c.open) return '<span class="chip">Available any time</span>';
+  if(c.left <= 0) return '<span class="chip done">'+icon("check",14)+' Done</span>';
+  if(c.days <= 14) return '<span class="chip urgent">'+icon("clock",14)+' '+dayWords(c.days)+'</span>';
+  if(c.days <= 45) return '<span class="chip soon">'+dayWords(c.days)+'</span>';
+  return '<span class="chip">'+dayWords(c.days)+'</span>';
+}
+function countAttr(id, val){ return 'data-count="'+val+'" data-cid="'+id+'"'; }
+function runCounts(){
+  document.querySelectorAll("[data-count]").forEach(el => {
+    const to = Number(el.dataset.count), id = el.dataset.cid, from = ui.prev[id] === undefined ? 0 : ui.prev[id];
+    ui.prev[id] = to;
+    const fmt = v => money(v, Math.abs(to % 1) > 0.001);
+    if(reduced() || from === to){ el.textContent = fmt(to); return; }
+    const t0 = performance.now(), dur = 900;
+    const step = now => { const k = Math.min(1, (now - t0)/dur), e = 1 - Math.pow(1-k, 3); el.textContent = fmt(from + (to-from)*e); if(k < 1) requestAnimationFrame(step); };
+    requestAnimationFrame(step);
+  });
+}
+
+/* ---------------- screens ---------------- */
+function greet(){ const h = new Date().getHours(); return h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening"; }
+
+function vToday(){
+  const y = today().getFullYear(), T = yearTotals(y), next = doNext(), st = streak();
+  const setupDone = SETUP.filter(s => state.setup[s.k]).length;
+  const won = unlocked();
+  const tip = TIPS[(today().getDate() + today().getMonth()) % TIPS.length];
+  let h = '';
+  h += '<section class="hello"><h1>'+greet()+', Arnie</h1><p class="waiting">Money waiting for you right now: <b class="num" '+countAttr("wait", T.now)+'>'+money(T.now)+'</b></p></section>';
+
+  h += '<section class="hero">';
+  h += '<div class="metal" role="img" aria-label="Your Platinum card, '+money(T.used)+' back in '+y+'"><div class="m-top"><div><div class="m-name">PLATINUM</div><div class="m-sub">LEDGER · CREDITS TRACKER</div></div><div class="chipgold"></div></div>'+
+       '<div class="m-bot"><div class="m-holder">ARNOLD G. SHAPIRO<br><span style="font-size:.78em;opacity:.7">MEMBER SINCE '+pad(parse(state.cardSince).getMonth()+1)+'/'+String(sinceYear()).slice(2)+'</span></div><div class="m-val">BACK IN '+y+'<b '+countAttr("cardv", T.used)+'>'+money(T.used)+'</b></div></div></div>';
+  const feePct = T.used / FEE;
+  h += '<div class="feecard">'+ring(feePct, 150, 14, feePct >= 1 ? "var(--done)" : "var(--brass)", '<b class="num">'+Math.min(999, Math.round(feePct*100))+'%</b><span>of the $895<br>fee earned back</span>')+
+       '<p>'+(feePct >= 1 ? 'The fee is paid off. Everything from here is profit.' : money(Math.max(0, FEE - T.used))+' more and the card has paid for itself.')+'</p></div>';
+  h += '</section>';
+
+  h += '<section class="strip">'+
+       '<div class="stat g"><span class="t">'+icon("coin",16)+' Back in '+y+'</span><span class="v" '+countAttr("su", T.used)+'>'+money(T.used)+'</span></div>'+
+       '<div class="stat gr"><span class="t">'+icon("fire",16)+' Month streak</span><span class="v num">'+st+'</span></div>'+
+       '<div class="stat r"><span class="t">'+icon("clock",16)+' Expired unused</span><span class="v" '+countAttr("sl", T.lost)+'>'+money(T.lost)+'</span></div></section>';
+
+  h += '<section class="next"><div class="sec-h"><div><div class="eyebrow">Do this next</div><h2>Use these before they expire</h2></div></div>';
+  if(next.length){
+    for(const x of next.slice(0,3)){
+      const hot = x.c.days <= 14, needEnroll = x.b.enroll && !state.enrolled[x.b.k];
+      h += '<article class="ncard'+(hot?' hot':'')+'"><div class="nrow"><div class="nicon">'+icon(x.b.ico,28)+'</div><div class="ntext"><h3>'+esc(x.b.name)+'</h3><span class="nmeta">'+dayWords(x.c.days)+' · use by '+nice(x.c.p.e)+(needEnroll?' · enroll first':'')+'</span></div><div class="namt num">'+money(x.c.left)+'</div></div>'+
+           '<div class="nbtns"><button type="button" class="btn gold big" data-act="usefull" data-k="'+x.b.k+'">'+icon("check",22)+' I used it</button><button type="button" class="btn big" data-act="open" data-k="'+x.b.k+'">Details</button></div></article>';
+    }
+    if(next.length > 3) h += '<button type="button" class="btn wide" data-act="tab" data-tab="credits">See all '+next.length+' credits with money left</button>';
+  } else {
+    h += '<div class="panel allclear">'+icon("trophy",40)+'<div class="big">Every credit is used for now</div><p class="muted">Next reset: '+niceY(nextReset())+'.</p></div>';
+  }
+  h += '</section>';
+
+  if(setupDone < SETUP.length){
+    const nx = SETUP.find(s => !state.setup[s.k]);
+    h += '<section class="panel setupcard"><div class="sec-h"><div><div class="eyebrow">Getting started</div><h2>Setup '+setupDone+' of '+SETUP.length+'</h2></div></div><div class="bar"><i style="width:'+Math.round(setupDone/SETUP.length*100)+'%"></i></div>'+
+         '<label class="tg" for="sx-'+nx.k+'"><input type="checkbox" id="sx-'+nx.k+'" data-act="setup" data-k="'+nx.k+'"><span><b>Next:</b> '+esc(nx.t)+'</span></label>'+
+         '<button type="button" class="btn" data-act="tab" data-tab="perks">See the full setup list</button></section>';
+  }
+
+  h += '<section class="tip"><div class="tic">'+icon("sparkle",22)+'</div><p><span class="tl">Today\'s tip</span>'+esc(tip)+'</p></section>';
+
+  h += '<section><div class="sec-h" style="margin-bottom:12px"><div><div class="eyebrow">Your wins</div><h2>'+won.length+' of '+BADGES.length+' badges</h2></div><button type="button" class="btn sm" data-act="tab" data-tab="wins">See all</button></div><div class="medals">';
+  const show = BADGES.filter(b => won.includes(b.k)).slice(-2).concat(BADGES.filter(b => !won.includes(b.k)).slice(0, won.length ? 1 : 3));
+  for(const b of show) h += medal(b, won.includes(b.k));
+  h += '</div></section>';
+  return h;
+}
+function nextReset(){ const t = today(); return iso(new Date(t.getFullYear(), t.getMonth()+1, 1)); }
+function medal(b, on){ return '<div class="medal '+(on?'on':'off')+'"><div class="disc">'+icon(on?b.ico:"lock", on?32:24)+'</div><h4>'+esc(b.n)+'</h4><p>'+esc(b.d)+'</p></div>'; }
+
+function vCredits(){
+  const F = [["all","All"],["soon","Ending soon"],["month","Monthly"],["quarter","Quarterly"],["half","Twice a year"],["year","Yearly"],["done","Done"]];
+  let h = '<section class="sec-h"><div><div class="eyebrow">All 12 credits</div><h2>Your credits</h2></div><span class="sub">Tap any credit for details and history.</span></section>';
+  h += '<div class="filters" role="group" aria-label="Filter credits">'+F.map(f => '<button type="button" class="fbtn" data-act="filter" data-f="'+f[0]+'" aria-pressed="'+(ui.filter===f[0])+'">'+f[1]+'</button>').join("")+'</div>';
+  let list = BENEFITS.map(b => ({b, c:current(b)}));
+  const f = ui.filter;
+  if(f === "soon") list = list.filter(x => !x.c.open && x.c.left > 0 && !state.skip[x.b.k]).sort((a,z) => a.c.days - z.c.days);
+  else if(f === "done") list = list.filter(x => x.c.left <= 0);
+  else if(f !== "all") list = list.filter(x => x.b.cad === f);
+  h += '<div class="grid">';
+  if(!list.length) h += '<div class="panel allclear" style="grid-column:1/-1"><p class="muted">Nothing here right now.</p></div>';
+  let lastCad = null;
+  for(const x of list){
+    if(f === "all" && x.b.cad !== lastCad){ lastCad = x.b.cad; h += '<div class="groupt"><h3>'+CAD_NAME[lastCad]+'</h3><span>'+cadNote(lastCad)+'</span></div>'; }
+    h += tile(x.b, x.c);
+  }
+  h += '</div>';
+  return h;
+}
+function cadNote(c){ return {month:"Resets on the 1st of every month.", quarter:"Resets Jan 1, Apr 1, Jul 1 and Oct 1.", half:"Resets Jan 1 and Jul 1.", year:"Resets every January 1.", "4yr":"No deadline. Use it when you renew."}[c]; }
+function tile(b, c){
+  const full = c.left <= 0, sk = state.skip[b.k];
+  const color = full ? "var(--done)" : (c.days !== null && c.days <= 14 ? "var(--urgent)" : "var(--brass)");
+  let h = '<div class="tile'+(full?' full':'')+(sk?' skip':'')+'" role="button" tabindex="0" data-act="open" data-k="'+b.k+'" aria-label="'+esc(b.name)+', '+money(c.left)+' left">';
+  h += '<div class="tile-top">'+ring(c.pct, 78, 8, color, full ? '<span style="color:var(--done)">'+icon("check",30)+'</span>' : '<span class="ticon" style="position:static;color:var(--brass)">'+icon(b.ico,26)+'</span>')+
+       '<div style="min-width:0;display:flex;flex-direction:column;gap:4px"><h3>'+esc(b.name)+'</h3><span style="font-size:22px;font-weight:800" class="num">'+money(c.left)+' <span style="font-size:14px;font-weight:500;color:var(--muted)">left of '+money(c.p.amt)+'</span></span></div></div>';
+  h += '<div class="chips">'+chip(b,c)+(b.enroll && !state.enrolled[b.k] && !sk ? '<span class="chip dash">Enroll first</span>' : '')+(state.auto[b.k] ? '<span class="chip done">Automatic</span>' : '')+'</div>';
+  h += '<div class="win">'+(b.cad === "4yr" ? (c.open ? "Use it any time." : "Next one after "+niceY(c.p.e)+".") : 'Window: '+nice(c.p.s)+' to '+nice(c.p.e))+'</div>';
+  if(!full && !sk) h += '<div class="tile-act"><button type="button" class="btn gold sm" data-act="usefull" data-k="'+b.k+'">'+icon("check",16)+' I used '+(c.open?"it":money(c.left))+'</button></div>';
+  h += '</div>';
+  return h;
+}
+
+function vCalendar(){
+  const t = today(), Y = ui.calYear || t.getFullYear(), ti = tIso();
+  let h = '<section class="sec-h"><div><div class="eyebrow">The whole year at a glance</div><h2>'+Y+' credit calendar</h2></div><div class="yearsw">'+
+          [t.getFullYear(), t.getFullYear()+1].map(yy => '<button type="button" class="fbtn" data-act="year" data-y="'+yy+'" aria-pressed="'+(Y===yy)+'">'+yy+'</button>').join("")+'</div></section>';
+  h += '<div class="legend"><span><i class="pip done"></i>Used</span><span><i class="pip open"></i>Open now</span><span><i class="pip future"></i>Coming up</span><span><i class="pip lost"></i>Expired unused</span></div>';
+  h += '<p class="muted" style="font-size:15px">Each month lists the credits whose window ends that month.</p>';
+  h += '<div class="months">';
+  for(let m = 0; m < 12; m++){
+    const ms = iso(new Date(Y,m,1)), me = iso(new Date(Y,m+1,0));
+    const items = [];
+    for(const b of BENEFITS){
+      if(b.cad === "4yr" || state.skip[b.k]) continue;
+      const p = periodAt(b, new Date(Y,m,1)); if(p.e !== me) continue;
+      let s; const u = usedIn(b,p);
+      if(p.e < state.cardSince) s = "pre"; else if(u >= p.amt) s = "done"; else if(p.e < ti) s = "lost"; else if(p.s <= ti) s = "open"; else s = "future";
+      items.push({b, p, s, u});
+    }
+    const total = items.filter(i => i.s !== "pre").reduce((a,i) => a + i.p.amt, 0);
+    const isNow = ti >= ms && ti <= me, pre = me < state.cardSince;
+    h += '<div class="mon'+(isNow?' now':'')+(pre?' pre':'')+'"><div class="mon-h"><h4>'+MONTHS_L[m]+'</h4><span>'+(pre ? "before card" : money(total,false))+'</span></div><ul>';
+    for(const i of items) h += '<li><i class="pip '+i.s+'"></i><span class="lbl">'+esc(i.b.short)+'</span><span class="amt">'+money(i.p.amt)+'</span></li>';
+    h += '</ul></div>';
+  }
+  h += '</div>';
+  h += '<section class="panel"><div class="eyebrow" style="margin-bottom:6px">Key dates</div><h2 style="font-size:22px;margin-bottom:8px">Coming up</h2><ul class="dates">';
+  for(const d of keyDates()) h += '<li><div class="datebox"><i>'+MONTHS[parse(d.d).getMonth()].toUpperCase()+'</i><b>'+parse(d.d).getDate()+'</b></div><div class="dt"><b>'+esc(d.t)+'</b><span>'+esc(d.s)+'</span></div></li>';
+  h += '</ul></section>';
+  return h;
+}
+function keyDates(){
+  const t = today(), y = t.getFullYear(), m = t.getMonth(), out = [];
+  const monthEnd = iso(new Date(y,m+1,0));
+  const ml = MONTHLY.filter(b => !state.skip[b.k]).reduce((a,b) => a + current(b).left, 0);
+  out.push({d:monthEnd, t:"Monthly credits expire", s: ml > 0 ? money(ml)+" still unused this month" : "All used. Nice."});
+  out.push({d:iso(new Date(y,m+1,1)), t:"Monthly credits reset", s:"Fresh entertainment, Uber Cash and Walmart+ credits"});
+  const qe = iso(new Date(y, Math.floor(m/3)*3+3, 0));
+  const ql = ["resy","lulu"].filter(k => !state.skip[k]).reduce((a,k) => a + current(BK[k]).left, 0);
+  if(qe !== monthEnd) out.push({d:qe, t:"Quarter ends: Resy and lululemon", s: ql > 0 ? money(ql)+" left to use" : "Both used"});
+  const he = iso(new Date(y, m < 6 ? 6 : 12, 0));
+  out.push({d:he, t:"Hotel credit half-year ends", s: current(BK.hotel).left > 0 ? money(current(BK.hotel).left)+" left on Fine Hotels + Resorts" : "Used"});
+  const yl = BENEFITS.filter(b => b.cad === "year" && !state.skip[b.k]).reduce((a,b) => a + current(b).left, 0);
+  out.push({d:y+"-12-31", t:"Yearly credits expire", s: yl > 0 ? money(yl)+" left: airline, CLEAR, Equinox, Oura, Uber One" : "All used"});
+  out.push({d:(y+1)+"-01-01", t:"Everything resets", s:"New year, new credits"});
+  if(state.bonus.deadline && state.bonus.deadline >= tIso()) out.push({d:state.bonus.deadline, t:"Welcome bonus deadline", s: money(Math.max(0, state.bonus.target - state.bonus.spent))+" more spending needed"});
+  const seen = new Set();
+  return out.filter(d => d.d >= tIso()).sort((a,b) => a.d < b.d ? -1 : 1).filter(d => { const k = d.d+d.t; if(seen.has(k)) return false; seen.add(k); return true; });
+}
+
+function vPerks(){
+  const B = state.bonus, sc = skyCount();
+  const bpct = B.target > 0 ? B.spent / B.target : 0;
+  const daysLeft = Math.max(0, daysBetween(tIso(), B.deadline || tIso()));
+  const need = Math.max(0, B.target - B.spent), perWeek = daysLeft > 0 ? need / (daysLeft/7) : need;
+  let h = '<section class="sec-h"><div><div class="eyebrow">Beyond the credits</div><h2>Perks and protection</h2></div><span class="sub">Lounges, status, points and insurance that come with the card.</span></section>';
+  h += '<div class="pgrid">';
+
+  // Welcome bonus
+  h += '<section class="pcard"><div class="ph"><div class="pi">'+icon("gift",24)+'</div><div><h3>Welcome bonus</h3><p>Spend enough in time and the points land in your account.</p></div></div>';
+  h += '<div class="bonusrow">'+ring(bpct, 130, 13, bpct >= 1 ? "var(--done)" : "var(--brass)", '<b class="num">'+Math.min(100, Math.round(bpct*100))+'%</b><span>of goal</span>')+
+       '<div class="bt"><b>'+(bpct >= 1 ? "Goal reached" : money(need)+" to go")+'</b><span class="muted">'+(bpct >= 1 ? "Points usually post within a few weeks." : "About "+money(Math.ceil(perWeek),false)+" a week until "+niceY(B.deadline))+'</span><span class="muted">Reward: '+Number(B.points).toLocaleString("en-US")+' points</span></div></div>';
+  h += '<div class="fields"><label class="field" for="b-spent">Spent so far (from the Amex app)<input id="b-spent" type="number" inputmode="decimal" min="0" step="1" value="'+B.spent+'" data-bonus="spent"></label>'+
+       '<label class="field" for="b-target">Spending goal<input id="b-target" type="number" inputmode="decimal" min="0" step="1" value="'+B.target+'" data-bonus="target"></label>'+
+       '<label class="field" for="b-dead">Deadline<input id="b-dead" type="date" value="'+esc(B.deadline)+'" data-bonus="deadline"></label>'+
+       '<label class="field" for="b-pts">Bonus points<input id="b-pts" type="number" inputmode="numeric" min="0" step="1000" value="'+B.points+'" data-bonus="points"></label></div>';
+  h += '<p class="muted" style="font-size:14.5px">These start at the published offer (up to 175,000 points after $12,000 in 6 months). Your exact offer is in your welcome letter or the Amex app, so adjust them to match.</p></section>';
+
+  // Lounges
+  h += '<section class="pcard"><div class="ph"><div class="pi">'+icon("sofa",24)+'</div><div><h3>Airport lounges</h3><p>Show the Platinum and your boarding pass. Guests usually pay extra.</p></div></div>';
+  h += '<div class="counter"><div><b style="font-size:20px">Delta Sky Club: '+sc.n+' of 10</b><div class="muted" style="font-size:14px">Visits '+nice(sc.s)+', '+parse(sc.s).getFullYear()+' to '+nice(sc.e)+', '+parse(sc.e).getFullYear()+'. I haven\'t confirmed the reset date, so check the Fly Delta app.</div></div><div class="pips" aria-hidden="true">';
+  for(let i = 0; i < 10; i++) h += '<i class="'+(i < sc.n ? 'on' : '')+'"></i>';
+  h += '</div></div><div class="lbtns">'+LOUNGES.map(l => '<button type="button" class="btn sm" data-act="lounge" data-l="'+l.k+'">+ '+esc(l.n)+'</button>').join("")+'</div>';
+  h += '<ul class="plist">'+LOUNGES.map(l => '<li><div><b>'+esc(l.n)+'</b><span class="s">'+esc(l.s)+'</span></div><span class="r">'+state.lounges.filter(v => v.k === l.k).length+' visits</span></li>').join("")+'</ul>';
+  h += '<p class="muted" style="font-size:14.5px">Lufthansa lounge access ended Oct 1, 2026.</p>';
+  const recent = state.lounges.slice().sort((a,b) => a.date < b.date ? 1 : -1).slice(0,4);
+  if(recent.length) h += '<ul class="hist">'+recent.map(v => '<li><span>'+niceY(v.date)+' · '+esc((LOUNGES.find(l => l.k === v.k)||{n:"Lounge"}).n)+'</span><button type="button" class="btn ghost sm" data-act="dellounge" data-id="'+esc(v.id)+'">Remove</button></li>').join("")+'</ul>';
+  h += '</section>';
+
+  // Setup checklist
+  const sd = SETUP.filter(s => state.setup[s.k]).length;
+  h += '<section class="pcard" id="setup"><div class="ph"><div class="pi">'+icon("settings",24)+'</div><div><h3>One-time setup</h3><p>'+sd+' of '+SETUP.length+' done. Most are in the Amex app, Benefits tab.</p></div></div><div class="bar"><i class="'+(sd===SETUP.length?'done':'')+'" style="width:'+Math.round(sd/SETUP.length*100)+'%"></i></div>';
+  h += '<div style="display:flex;flex-direction:column;gap:12px">'+SETUP.map(s => '<label class="tg" for="su-'+s.k+'"><input type="checkbox" id="su-'+s.k+'" data-act="setup" data-k="'+s.k+'"'+(state.setup[s.k]?' checked':'')+'><span class="'+(state.setup[s.k]?'x':'')+'">'+esc(s.t)+'</span></label>').join("")+'</div></section>';
+
+  // Status
+  h += '<section class="pcard"><div class="ph"><div class="pi">'+icon("star",24)+'</div><div><h3>Free elite status</h3><p>Each one has to be turned on once in the Amex app.</p></div></div><ul class="plist">'+
+       [["Hilton Honors Gold","Room upgrades and daily food and beverage credit"],["Marriott Bonvoy Gold","Late checkout and bonus points"],["Leaders Club","Leading Hotels of the World perks"],["Hertz President's Circle","Pick your car, skip the counter"],["National Emerald Club Executive","Choose any car in the Executive aisle"],["Avis Preferred","Skip the counter"]]
+       .map(r => '<li><div><b>'+r[0]+'</b><span class="s">'+r[1]+'</span></div></li>').join("")+'</ul><p class="muted" style="font-size:14px">The perk descriptions are general program features. I haven\'t verified each one.</p></section>';
+
+  // Earn
+  h += '<section class="pcard"><div class="ph"><div class="pi">'+icon("bolt",24)+'</div><div><h3>Earning points</h3><p>Membership Rewards points on every purchase.</p></div></div><ul class="plist">'+
+       '<li><div><b>Flights booked directly with the airline or Amex Travel</b></div><span class="r">5x</span></li>'+
+       '<li><div><b>Prepaid hotels booked on Amex Travel</b></div><span class="r">5x</span></li>'+
+       '<li><div><b>Everything else</b></div><span class="r">1x</span></li></ul>'+
+       '<div class="eyebrow">Transfer points to</div><div class="partners">'+["Delta","Air France / KLM","Singapore Airlines","British Airways","Air Canada","ANA","Virgin Atlantic","Emirates","Hilton","Marriott"].map(p => '<span>'+p+'</span>').join("")+'</div><p class="muted" style="font-size:14px">A partial list. The Amex app shows every partner.</p></section>';
+
+  // Protection
+  h += '<section class="pcard"><div class="ph"><div class="pi">'+icon("shield",24)+'</div><div><h3>Travel protection</h3><p>Turns on when you pay for the round trip with the Platinum.</p></div></div><ul class="plist">'+
+       '<li><div><b>Trip cancellation or interruption</b><span class="s">Up to $20,000 per 12 months</span></div><span class="r">$10,000 / trip</span></li>'+
+       '<li><div><b>Trip delay</b><span class="s">Delays over 6 hours. Up to 2 claims per 12 months</span></div><span class="r">$500</span></li>'+
+       '<li><div><b>Lost or damaged baggage</b></div><span class="r">Covered</span></li>'+
+       '<li><div><b>Rental car damage</b><span class="s">Secondary coverage in the U.S. Decline the counter\'s damage waiver</span></div><span class="r">Covered</span></li></ul>'+
+       '<div class="warnbox">'+icon("shield",20)+'<span><b>No emergency medical coverage.</b> Buy travel medical insurance for trips abroad. For safaris, cruises or big tours, buy standalone trip insurance within 14 to 21 days of the first deposit, because card coverage stops at $10,000 per trip.</span></div></section>';
+
+  h += '<section class="pcard"><div class="ph"><div class="pi">'+icon("phone",24)+'</div><div><h3>Shopping protection</h3><p>Automatic on purchases made with the Platinum.</p></div></div><ul class="plist">'+
+       '<li><div><b>Cell phone protection</b><span class="s">When your phone bill is paid with the Platinum</span></div></li>'+
+       '<li><div><b>Purchase protection</b><span class="s">Theft or accidental damage soon after buying</span></div></li>'+
+       '<li><div><b>Return protection</b><span class="s">When a store won\'t take an item back</span></div></li>'+
+       '<li><div><b>Extended warranty</b><span class="s">Adds time to the maker\'s warranty</span></div></li></ul>'+
+       '<p class="muted" style="font-size:14px">Limits and time windows are in the card\'s benefit terms in the Amex app.</p></section>';
+
+  h += '</div>';
+  return h;
+}
+
+function vWins(){
+  const L = lifetime(), won = unlocked(), st = streak();
+  let h = '<section class="bigsave"><div class="eyebrow">Money back since '+niceY(state.cardSince)+'</div><div class="v" '+countAttr("life", L.used)+'>'+money(L.used)+'</div><p class="muted">'+(L.used >= FEE ? 'More than the $895 annual fee. The card is paying you.' : money(FEE - L.used)+' more covers the $895 annual fee.')+'</p></section>';
+  h += '<section class="strip"><div class="stat g"><span class="t">'+icon("trophy",16)+' Badges</span><span class="v num">'+won.length+'/'+BADGES.length+'</span></div><div class="stat gr"><span class="t">'+icon("fire",16)+' Streak</span><span class="v num">'+st+' mo</span></div><div class="stat"><span class="t">'+icon("coin",16)+' Logged</span><span class="v num">'+state.entries.length+'</span></div></section>';
+  h += '<section><div class="sec-h" style="margin-bottom:12px"><div><div class="eyebrow">Collect them all</div><h2>Badges</h2></div></div><div class="medals">'+BADGES.map(b => medal(b, won.includes(b.k))).join("")+'</div></section>';
+
+  h += '<section><div class="sec-h" style="margin-bottom:12px"><div><div class="eyebrow">Everything you\'ve logged</div><h2>History</h2></div></div>';
+  const list = state.entries.slice().sort((a,b) => a.date < b.date ? 1 : a.date > b.date ? -1 : 0);
+  if(!list.length) h += '<div class="panel allclear"><p class="muted">Nothing logged yet. Tap I used it on any credit and it shows up here.</p></div>';
+  else {
+    h += '<ul class="feed">'; let lastM = "";
+    for(const x of list){
+      const mk = x.date.slice(0,7); if(mk !== lastM){ lastM = mk; const d = parse(x.date); h += '<li style="background:transparent;border:0;padding:4px 2px"><span class="mhead">'+MONTHS_L[d.getMonth()]+' '+d.getFullYear()+'</span></li>'; }
+      const b = BK[x.b] || {name:x.b, ico:"coin"};
+      h += '<li><div class="fi">'+icon(b.ico,20)+'</div><div class="ft"><b>'+esc(b.name)+'</b><span>'+niceY(x.date)+(x.note ? ' · '+esc(x.note) : '')+'</span></div><span class="fa">+'+money(x.amt)+'</span><button type="button" class="btn ghost sm" data-act="del" data-id="'+esc(x.id)+'" aria-label="Remove this entry">'+icon("x",16)+'</button></li>';
+    }
+    h += '</ul>';
+  }
+  h += '</section>';
+
+  h += '<section class="panel" style="display:flex;flex-direction:column;gap:14px"><div class="ph" style="display:flex;gap:12px;align-items:center"><div class="pi" style="width:46px;height:46px;border-radius:14px;background:var(--brass-soft);color:var(--brass);display:grid;place-items:center">'+icon("settings",24)+'</div><h3 style="font-size:20px">Settings</h3></div>'+
+       '<label class="field" for="card-since" style="max-width:320px">Date you got the card<input type="date" id="card-since" value="'+esc(state.cardSince)+'"></label>'+
+       '<span class="muted" style="font-size:14.5px">Credit windows that closed before this date aren\'t counted as missed.</span>'+
+       '<label class="tg" for="snd"><input type="checkbox" id="snd" data-act="soundbox"'+(state.sound?' checked':'')+'><span>Play sounds when I use a credit</span></label>'+
+       '<div class="lbtns" id="reset-box">'+(ui.resetArmed ? '<span style="align-self:center">This erases every entry, checkbox and badge. Sure?</span><button type="button" class="btn danger" data-act="reset2">Yes, erase everything</button><button type="button" class="btn ghost" data-act="reset0">Keep my entries</button>' : '<button type="button" class="btn danger" data-act="reset1">Erase all my entries</button>')+'</div></section>';
+
+  h += '<footer class="muted" style="font-size:14px;display:flex;flex-direction:column;gap:8px"><p>Credit amounts and windows were checked against public sources on Oct 30, 2026. Amex changes terms from time to time, so the Benefits tab in the Amex app is the final word.</p>'+
+       '<p>Sources: <a style="color:var(--brass)" href="https://thepointsguy.com/credit-cards/quarterly-credit-card-statement-credits/" target="_blank" rel="noopener">The Points Guy</a> · <a style="color:var(--brass)" href="https://awardwallet.com/credit-cards/use-statement-credits/" target="_blank" rel="noopener">AwardWallet</a> · <a style="color:var(--brass)" href="https://upgradedpoints.com/news/2026-annual-credit-card-statement-credits/" target="_blank" rel="noopener">Upgraded Points</a> · <a style="color:var(--brass)" href="https://cardstack.money/articles/credit-card-reviews/amex-platinum-credits-list-2026" target="_blank" rel="noopener">CardStack</a></p></footer>';
+  return h;
+}
+
+/* ---------------- sheet (credit detail) ---------------- */
+function sheetCredit(k){
+  const b = BK[k], c = current(b), full = c.left <= 0, sk = state.skip[b.k];
+  const hist = entriesFor(k).sort((a,z) => a.date < z.date ? 1 : -1);
+  const color = full ? "var(--done)" : (c.days !== null && c.days <= 14 ? "var(--urgent)" : "var(--brass)");
+  let h = '<div class="grab"></div><div class="sh-top"><div class="chips">'+chip(b,c)+'<span class="chip">'+CAD_NAME[b.cad]+'</span></div><button type="button" class="iconbtn" data-act="close" aria-label="Close">'+icon("x",20)+'</button></div>';
+  h += '<div class="sh-hero">'+ring(c.pct, 140, 13, color, '<b class="num">'+money(c.left)+'</b><span>left</span>')+'<div class="info"><h2>'+esc(b.name)+'</h2><span class="muted">'+money(c.p.amt)+' '+CAD_LABEL[b.cad]+'</span>'+
+       '<span>'+(b.cad === "4yr" ? (c.open ? "Available now" : "Next one after "+niceY(c.p.e)) : 'Window: <b>'+nice(c.p.s)+' to '+niceY(c.p.e)+'</b>')+'</span></div></div>';
+  if(!full){
+    h += '<button type="button" class="btn gold big wide" data-act="usefull" data-k="'+k+'">'+icon("check",22)+' I used '+(c.open ? "it" : "all "+money(c.left))+'</button>';
+    h += '<form class="sec" data-form="'+k+'"><span class="lab">Or log part of it</span><div class="quick">';
+    const qs = [...new Set([Math.round(c.left*0.25*100)/100, Math.round(c.left*0.5*100)/100].filter(v => v >= 5))];
+    for(const q of qs) h += '<button type="button" class="btn sm" data-act="quick" data-k="'+k+'" data-v="'+q+'">'+money(q)+'</button>';
+    h += '</div><div class="fields"><label class="field" for="amt-'+k+'">Amount<input id="amt-'+k+'" type="number" inputmode="decimal" step="0.01" min="0.01" placeholder="'+c.left+'" required></label>'+
+         '<label class="field" for="date-'+k+'">Date charged<input id="date-'+k+'" type="date" value="'+tIso()+'" required></label>'+
+         '<label class="field" for="note-'+k+'" style="grid-column:1/-1">Note (optional)<input id="note-'+k+'" type="text" maxlength="80" placeholder="What did you buy?"></label></div>'+
+         '<button type="submit" class="btn wide">Save this charge</button></form>';
+  }
+  h += '<div class="sec"><span class="lab">What counts</span><p>'+esc(b.what)+'</p></div>';
+  h += '<div class="sec"><span class="lab">Easiest way to use it</span><p>'+esc(b.how)+'</p></div>';
+  h += '<div class="sec" style="gap:12px">';
+  if(b.enroll) h += '<label class="tg" for="en-'+k+'"><input type="checkbox" id="en-'+k+'" data-act="enroll" data-k="'+k+'"'+(state.enrolled[k]?' checked':'')+'><span>I\'ve enrolled in this in the Amex app</span></label>';
+  if(b.autoOk) h += '<label class="tg" for="au-'+k+'"><input type="checkbox" id="au-'+k+'" data-act="auto" data-k="'+k+'"'+(state.auto[k]?' checked':'')+'><span><b>Happens automatically.</b> A repeating bill on the Platinum uses this every '+(b.cad==="month"?"month":"year")+', so count it as used'+(state.auto[k]?' (since '+niceY(state.auto[k])+')':'')+'.</span></label>';
+  h += '<label class="tg" for="sk-'+k+'"><input type="checkbox" id="sk-'+k+'" data-act="skip" data-k="'+k+'"'+(sk?' checked':'')+'><span>I don\'t use this one. Leave it out of reminders and missed totals.</span></label></div>';
+  h += '<div class="sec"><span class="lab">Charges you logged</span>';
+  h += hist.length ? '<ul class="hist">'+hist.map(x => '<li><span class="num">'+niceY(x.date)+' · <b>'+money(x.amt)+'</b>'+(x.note?' · '+esc(x.note):'')+'</span><button type="button" class="btn ghost sm" data-act="del" data-id="'+esc(x.id)+'">Remove</button></li>').join("")+'</ul>' : '<span class="muted" style="font-size:15px">Nothing logged yet.</span>';
+  h += '</div>';
+  return h;
+}
+function sheetBadge(keys){
+  const bs = keys.map(k => BADGES.find(b => b.k === k)).filter(Boolean);
+  let h = '<div class="grab"></div><div class="sh-top"><span></span><button type="button" class="iconbtn" data-act="close" aria-label="Close">'+icon("x",20)+'</button></div>';
+  h += '<div class="sec celebrate"><div class="eyebrow">Badge unlocked</div>';
+  for(const b of bs) h += '<div class="medal on"><div class="disc">'+icon(b.ico,52)+'</div><h2 style="font-size:28px">'+esc(b.n)+'</h2><p style="font-size:16px">'+esc(b.d)+'</p></div>';
+  h += '<button type="button" class="btn gold big wide" data-act="close">Keep going</button></div>';
+  return h;
+}
+function renderSheet(){
+  const root = document.getElementById("sheet-root");
+  if(!ui.sheet){ root.innerHTML = ""; document.body.style.overflow = ""; return; }
+  const body = ui.sheet.kind === "credit" ? sheetCredit(ui.sheet.k) : sheetBadge(ui.sheet.keys);
+  const keepScroll = root.querySelector(".sheet") ? root.querySelector(".sheet").scrollTop : 0;
+  root.innerHTML = '<div class="scrim" data-act="close"></div><div class="sheet" role="dialog" aria-modal="true" aria-label="Details">'+body+'</div>';
+  const sh = root.querySelector(".sheet"); if(keepScroll) sh.scrollTop = keepScroll;
+  document.body.style.overflow = "hidden";
+}
+function openSheet(s){ const fresh = !ui.sheet; ui.sheet = s; renderSheet(); if(fresh){ const sh = document.querySelector(".sheet"); if(sh){ sh.scrollTop = 0; const btn = sh.querySelector("[data-act=close]:not(.scrim)"); btn && btn.focus({preventScroll:true}); } } }
+function closeSheet(){ ui.sheet = null; renderSheet(); }
+
+/* ---------------- toast ---------------- */
+let toastTimer = null;
+function toast(html, undoId){
+  const root = document.getElementById("toast-root");
+  root.innerHTML = '<div class="toast" role="status">'+html+(undoId ? '<button type="button" class="btn sm" data-act="undo" data-id="'+esc(undoId)+'">'+icon("undo",16)+' Undo</button>' : '')+'</div>';
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => { root.innerHTML = ""; }, 5200);
+}
+
+/* ---------------- main render ---------------- */
+const TABS = [["today","Today","home"],["credits","Credits","coin"],["calendar","Calendar","calendar"],["perks","Perks","sparkle"],["wins","Wins","trophy"]];
+function renderNav(){
+  const urgent = doNext().filter(x => x.c.days <= 14).length;
+  document.getElementById("nav").innerHTML = TABS.map(t => '<button type="button" data-act="tab" data-tab="'+t[0]+'"'+(ui.tab===t[0]?' aria-current="page"':'')+'>'+icon(t[2],24)+'<span>'+t[1]+'</span>'+(t[0]==="credits" && urgent ? '<span class="badge">'+urgent+'</span>' : '')+'</button>').join("");
+  const sb = document.getElementById("sound-btn"); sb.innerHTML = icon(state.sound ? "sound" : "mute", 20); sb.setAttribute("aria-pressed", String(state.sound));
+}
+function render(animate){
+  const v = document.getElementById("view");
+  const html = ui.tab === "credits" ? vCredits() : ui.tab === "calendar" ? vCalendar() : ui.tab === "perks" ? vPerks() : ui.tab === "wins" ? vWins() : vToday();
+  // keep focus on an input the person is typing in
+  const ae = document.activeElement, aid = ae && ae.id && v.contains(ae) && /INPUT/.test(ae.tagName) ? ae.id : null;
+  v.innerHTML = html;
+  if(animate){ v.classList.remove("anim"); void v.offsetWidth; v.classList.add("anim"); }
+  else v.classList.remove("anim");
+  if(aid){ const el = document.getElementById(aid); if(el) el.focus({preventScroll:true}); }
+  renderNav(); runCounts();
+  if(ui.sheet) renderSheet();
+}
+function go(tab){
+  if(!TABS.some(t => t[0] === tab)) tab = "today";
+  const changed = tab !== ui.tab; ui.tab = tab;
+  try{ if(location.hash !== "#"+tab) history.replaceState(null, "", "#"+tab); }catch(e){}
+  render(true); if(changed) window.scrollTo({top:0, behavior:"auto"});
+}
+
+/* ---------------- saving ---------------- */
+let dbRef = null, writing = Promise.resolve(), saveTimer = null, dirty = false, gotFirst = false;
+function setStatus(kind, text){ document.getElementById("sync-dot").className = "dot"+(kind==="ok"?" ok":kind==="warn"?" warn":""); document.getElementById("sync-text").textContent = text; }
+function persist(){
+  try{ localStorage.setItem(KEY, JSON.stringify(state)); }catch(e){}
+  if(!dbRef) return;
+  dirty = true; clearTimeout(saveTimer); setStatus("warn","Saving…");
+  saveTimer = setTimeout(() => {
+    const snap = JSON.parse(JSON.stringify(state));
+    writing = writing.then(() => dbRef.set(snap)).then(() => { dirty = false; setStatus("ok","Synced"); })
+      .catch(() => { dirty = false; setStatus("warn","This device only"); });
+  }, 500);
+}
+function commit(){ persist(); render(false); }
+function hasContent(s){ return s.entries.length || s.lounges.length || Object.keys(s.enrolled).length || Object.keys(s.auto).length || Object.keys(s.setup).length || s.bonus.spent; }
+async function connect(){
+  const c = window.claude;
+  if(!c || typeof c.use !== "function"){ setStatus("ok","Saved on this device"); return; }
+  let db = null, user = null;
+  try{ const r = await Promise.all([c.use("db"), c.use("user")]); db = r[0]; user = r[1]; }catch(e){}
+  if(!db || !user){ setStatus("warn","This device only"); return; }
+  const id = await user.id();
+  if(!id){ setStatus("warn","This device only"); return; }
+  dbRef = db.doc("data/users/" + id + "/ledger");
+  dbRef.onSnapshot(snap => {
+    if(snap.metadata.hasPendingWrites || dirty) return;
+    if(snap.exists){
+      const incoming = hydrate(JSON.parse(JSON.stringify(snap.data())));
+      if(JSON.stringify(incoming) !== JSON.stringify(state)){
+        state = incoming;
+        for(const bk of unlocked()) if(!state.badges.includes(bk)) state.badges.push(bk);
+        try{ localStorage.setItem(KEY, JSON.stringify(state)); }catch(e){}
+        render(false);
+      }
+      setStatus("ok","Synced");
+    } else if(!gotFirst){
+      if(hasContent(state)) persist(); else setStatus("ok","Synced");
+    }
+    gotFirst = true;
+  }, () => { dbRef = null; setStatus("warn","This device only"); });
+}
+
+/* ---------------- actions ---------------- */
+function checkBadges(){
+  const now = unlocked(), fresh = now.filter(k => !state.badges.includes(k));
+  if(fresh.length){ state.badges = state.badges.concat(fresh); return fresh; }
+  return [];
+}
+function afterWin(level, srcEl, amt, label, undoId){
+  const fresh = checkBadges();
+  commit();
+  const o = originOf(srcEl);
+  if(fresh.length){
+    chime("big"); buzz([30,40,60]); boom("big", 0.5, 0.45);
+    setTimeout(() => openSheet({kind:"badge", keys:fresh}), 350);
+  } else { chime(level); buzz(level === "mid" ? [20,30,40] : 25); boom(level, o.x, o.y); }
+  if(amt !== undefined) toast('<span>'+icon("coin",20)+'</span><span><span class="ta">+'+money(amt)+'</span> back in your pocket'+(label ? ' · '+esc(label) : '')+'</span>', undoId);
+}
+function logEntry(k, amt, date, note, srcEl){
+  const b = BK[k]; const before = current(b);
+  const id = uid(); state.entries.push({id, b:k, amt:Math.round(amt*100)/100, date, note:note||""});
+  const after = current(b);
+  const completed = before.left > 0 && after.left <= 0;
+  afterWin(completed ? "mid" : "small", srcEl, amt, b.short, id);
+}
+
+document.addEventListener("click", e => {
+  const el = e.target.closest("[data-act]"); if(!el) return;
+  const act = el.dataset.act, k = el.dataset.k;
+  if(act === "tab"){ if(ui.sheet) closeSheet(); go(el.dataset.tab); }
+  else if(act === "open"){ if(e.target.closest("button") && e.target.closest("button") !== el) return; openSheet({kind:"credit", k}); }
+  else if(act === "close"){ closeSheet(); }
+  else if(act === "usefull"){
+    e.stopPropagation();
+    const b = BK[k], c = current(b), amt = c.open ? b.amt : c.left;
+    if(amt <= 0) return;
+    logEntry(k, amt, tIso(), "Used in full", el);
+  }
+  else if(act === "quick"){ const inp = document.getElementById("amt-"+k); if(inp){ inp.value = el.dataset.v; inp.focus(); } }
+  else if(act === "del"){ state.entries = state.entries.filter(x => x.id !== el.dataset.id); commit(); toast('<span>Entry removed</span>'); }
+  else if(act === "undo"){ state.entries = state.entries.filter(x => x.id !== el.dataset.id); state.lounges = state.lounges.filter(x => x.id !== el.dataset.id); commit(); document.getElementById("toast-root").innerHTML = ""; }
+  else if(act === "filter"){ ui.filter = el.dataset.f; render(true); }
+  else if(act === "year"){ ui.calYear = Number(el.dataset.y); render(true); }
+  else if(act === "lounge"){
+    const id = uid(); state.lounges.push({id, k:el.dataset.l, date:tIso()});
+    const l = LOUNGES.find(x => x.k === el.dataset.l);
+    const fresh = checkBadges(); commit();
+    chime("small"); buzz(25); const o = originOf(el); boom("small", o.x, o.y);
+    toast('<span>'+icon("sofa",20)+'</span><span>Visit logged: '+esc(l.n)+'</span>', id);
+    if(fresh.length){ chime("big"); boom("big"); setTimeout(() => openSheet({kind:"badge", keys:fresh}), 350); }
+  }
+  else if(act === "dellounge"){ state.lounges = state.lounges.filter(x => x.id !== el.dataset.id); commit(); }
+  else if(act === "sound"){ state.sound = !state.sound; commit(); if(state.sound) chime("small"); }
+  else if(act === "reset1"){ ui.resetArmed = true; render(false); }
+  else if(act === "reset0"){ ui.resetArmed = false; render(false); }
+  else if(act === "reset2"){ const since = state.cardSince, snd = state.sound; state = defaults(); state.cardSince = since; state.sound = snd; ui.resetArmed = false; ui.prev = {}; commit(); toast("<span>Everything erased. Fresh start.</span>"); }
+});
+document.addEventListener("keydown", e => {
+  if(e.key === "Escape" && ui.sheet){ closeSheet(); return; }
+  const t = e.target.closest && e.target.closest('.tile[data-act="open"]');
+  if(t && (e.key === "Enter" || e.key === " ") && e.target === t){ e.preventDefault(); openSheet({kind:"credit", k:t.dataset.k}); }
+});
+document.addEventListener("change", e => {
+  const el = e.target, act = el.dataset.act, k = el.dataset.k;
+  if(el.id === "card-since"){ if(el.value){ state.cardSince = el.value; commit(); } return; }
+  if(el.dataset.bonus){
+    const f = el.dataset.bonus;
+    if(f === "deadline"){ if(el.value) state.bonus.deadline = el.value; }
+    else { const v = parseFloat(el.value); state.bonus[f] = isFinite(v) && v >= 0 ? v : 0; }
+    const was = state.badges.includes("bonus");
+    const fresh = checkBadges(); commit();
+    if(f === "spent" && fresh.length){ chime("big"); boom("big"); setTimeout(() => openSheet({kind:"badge", keys:fresh}), 350); }
+    else if(f === "spent" && !was){ chime("small"); }
+    return;
+  }
+  if(act === "setup"){
+    if(el.checked) state.setup[k] = true; else delete state.setup[k];
+    if(el.checked){ afterWin("small", el); } else commit();
+  }
+  else if(act === "enroll"){ if(el.checked) state.enrolled[k] = true; else delete state.enrolled[k]; if(el.checked) afterWin("small", el); else commit(); }
+  else if(act === "auto"){
+    if(el.checked){ state.auto[k] = tIso(); afterWin("mid", el, current(BK[k]).p.amt, BK[k].short + " on autopilot"); }
+    else { delete state.auto[k]; commit(); }
+  }
+  else if(act === "skip"){ if(el.checked) state.skip[k] = true; else delete state.skip[k]; commit(); }
+  else if(act === "soundbox"){ state.sound = el.checked; commit(); if(state.sound) chime("small"); }
+});
+document.addEventListener("submit", e => {
+  const f = e.target.closest("form[data-form]"); if(!f) return;
+  e.preventDefault();
+  const k = f.dataset.form;
+  const amt = parseFloat(document.getElementById("amt-"+k).value);
+  const date = document.getElementById("date-"+k).value;
+  const note = document.getElementById("note-"+k).value.trim();
+  if(!(amt > 0) || !date) return;
+  logEntry(k, amt, date, note, f.querySelector("button[type=submit]"));
+});
+window.addEventListener("hashchange", () => { const h = location.hash.slice(1); if(h && h !== ui.tab) go(h); });
+
+/* ---------------- start ---------------- */
+// Badges already earned before this version: mark them seen quietly so nobody gets a flood of pop-ups.
+(function(){ const now = unlocked(); for(const k of now) if(!state.badges.includes(k)) state.badges.push(k); })();
+const startTab = (location.hash || "").slice(1);
+ui.tab = TABS.some(t => t[0] === startTab) ? startTab : "today";
+render(true);
+connect();
+setInterval(() => render(false), 60*60*1000);
+})();
+</script>
+
+<script>
+if("serviceWorker" in navigator){ window.addEventListener("load", () => navigator.serviceWorker.register("/sw.js").catch(() => {})); }
+</script>
+</body>
+</html>
